@@ -35,3 +35,21 @@ logs/
 *.sql
 *.tar.gz
 backups/
+
+# Screenshots and debugging images
+screenshots/
+*.png
+*.jpg
+*.jpeg
+*.PNG
+*.JPG
+*.JPEG
+
+# Internal development documents
+CRITICAL ISSUES*.pdf
+maps project Documentation.pdf
+
+# Other screenshots
+Capture.*
+Screenshot*
+UI_imprScreenshot*

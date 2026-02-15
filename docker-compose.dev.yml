@@ -1,0 +1,83 @@
+# Simplified Docker Compose for Local Development
+# This version uses public APIs (OSRM & Nominatim) to avoid long initialization times
+# and requires minimal disk space (~500MB vs 7-10GB)
+
+version: '3.8'
+
+services:
+  # Backend API only (uses public APIs)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - FRONTEND_URL=http://localhost
+      - CORS_ORIGIN=*
+      # Use public APIs for quick testing
+      - OSRM_URL=https://router.project-osrm.org
+      - NOMINATIM_URL=https://nominatim.openstreetmap.org
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=mapsdb
+      - DB_USER=mapsuser
+      - DB_PASSWORD=${DB_PASSWORD:-dev_password}
+      - REDIS_URL=redis://redis:6379
+    restart: unless-stopped
+    networks:
+      - maps-network
+
+  # PostgreSQL (optional - for future features)
+  postgres:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=mapsdb
+      - POSTGRES_USER=mapsuser
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-dev_password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - maps-network
+
+  # Redis (optional - for future features)
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - maps-network
+
+  # Frontend (served via nginx)
+  frontend:
+    image: nginx:alpine
+    container_name: frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - maps-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  maps-network:
+    driver: bridge

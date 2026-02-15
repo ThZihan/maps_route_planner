@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  osrm-backend:
+    image: osrm/osrm-backend:latest
+    container_name: osrm-backend
+    ports:
+      - "127.0.0.1:5000:5000"  # Only accessible locally
+    volumes:
+      - ./data/osrm:/data
+    command: >
+      osrm-routed --algorithm mld /data/bangladesh-latest.osrm
+    restart: always
+    networks:
+      - maps-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nominatim:
+    image: mediagis/nominatim:4.2  # Pin specific version
+    container_name: nominatim
+    ports:
+      - "127.0.0.1:8080:8080"  # Only accessible locally
+    environment:
+      - PBF_URL=https://download.geofabrik.de/asia/bangladesh-latest.osm.pbf
+      - REPLICATION_URL=https://download.geofabrik.de/asia/bangladesh-updates
+      - REPLICATION_UPDATE_INTERVAL=86400
+      - REPLICATION_RECHECK_INTERVAL=86400
+    volumes:
+      - nominatim-data:/var/lib/postgresql/data  # Generic path
+    restart: always
+    networks:
+      - maps-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_DB=mapsdb
+      - POSTGRES_USER=mapsuser
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - maps-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: always
+    networks:
+      - maps-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - FRONTEND_URL=${FRONTEND_URL}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - OSRM_URL=http://osrm-backend:5000
+      - NOMINATIM_URL=http://nominatim:8080
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=mapsdb
+      - DB_USER=mapsuser
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - osrm-backend
+      - nominatim
+      - postgres
+      - redis
+    restart: always
+    networks:
+      - maps-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    image: nginx:alpine
+    container_name: frontend
+    ports:
+      - "127.0.0.1:8081:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro  # Use frontend directly (or ./frontend/dist if built)
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    restart: always
+    networks:
+      - maps-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres-data:
+  redis-data:
+  nominatim-data:  # Add Nominatim volume
+
+networks:
+  maps-network:
+    driver: bridge

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Map Click</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100%; }
+        .info { 
+            position: absolute; 
+            top: 10px; 
+            left: 10px; 
+            background: white; 
+            padding: 10px; 
+            z-index: 1000; 
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <strong>Test Instructions:</strong><br>
+        1. Click on map to set Start marker (green)<br>
+        2. Click again to set End marker (red)<br>
+        3. Click again to reset and set new Start marker<br>
+        <div id="status">Status: Ready - Click on map</div>
+    </div>
+    <div id="map"></div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([23.8103, 90.4125], 12);
+        
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // Markers
+        let startMarker = null;
+        let endMarker = null;
+        const status = document.getElementById('status');
+        
+        // Custom icons
+        const startIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background: #28a745; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        });
+        
+        const endIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background: #dc3545; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        });
+        
+        // Map click handler
+        map.on('click', (e) => {
+            console.log('Map clicked at:', e.latlng);
+            
+            if (!startMarker) {
+                // Set start marker
+                startMarker = L.marker([e.latlng.lat, e.latlng.lng], { icon: startIcon }).addTo(map);
+                status.textContent = 'Status: Start marker set - Click again for End marker';
+                console.log('Start marker set at:', e.latlng);
+            } else if (!endMarker) {
+                // Set end marker
+                endMarker = L.marker([e.latlng.lat, e.latlng.lng], { icon: endIcon }).addTo(map);
+                status.textContent = 'Status: Both markers set - Click again to reset';
+                console.log('End marker set at:', e.latlng);
+            } else {
+                // Reset and set new start marker
+                map.removeLayer(startMarker);
+                map.removeLayer(endMarker);
+                startMarker = null;
+                endMarker = null;
+                startMarker = L.marker([e.latlng.lat, e.latlng.lng], { icon: startIcon }).addTo(map);
+                status.textContent = 'Status: Reset - New Start marker set - Click again for End marker';
+                console.log('Reset and new start marker set at:', e.latlng);
+            }
+        });
+        
+        console.log('Map initialized and ready for clicks');
+    </script>
+</body>
+</html>

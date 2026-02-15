@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maps Route Planner</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Route Planner</h1>
+            
+            <div class="input-group">
+                <label for="start-location">Start Location</label>
+                <input type="text" id="start-location" placeholder="Search or click on map" />
+                <div id="start-suggestions" class="suggestions"></div>
+            </div>
+            
+            <div class="input-group">
+                <label for="end-location">End Location</label>
+                <input type="text" id="end-location" placeholder="Search or click on map" />
+                <div id="end-suggestions" class="suggestions"></div>
+            </div>
+            
+            <div class="input-group">
+                <label for="vehicle-speed">Vehicle Speed (km/h)</label>
+                <input type="range" id="vehicle-speed" min="10" max="120" value="40" />
+                <span id="speed-display">40 km/h</span>
+            </div>
+            
+            <button id="calculate-route" class="btn btn-primary">Calculate Route</button>
+            
+            <div id="route-info" class="route-info hidden">
+                <div class="info-item">
+                    <span class="label">Distance:</span>
+                    <span id="distance">0 km</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">ETA:</span>
+                    <span id="eta">0 min</span>
+                </div>
+            </div>
+            
+            <div id="animation-controls" class="animation-controls hidden">
+                <button id="btn-play" class="btn btn-control">▶ Play</button>
+                <button id="btn-pause" class="btn btn-control">⏸ Pause</button>
+                <button id="btn-reset" class="btn btn-control">↺ Reset</button>
+                <div class="speed-control">
+                    <label>Animation Speed:</label>
+                    <input type="range" id="animation-speed" min="1" max="10" value="1" />
+                    <span id="animation-speed-display">1x</span>
+                </div>
+                <div class="progress-info">
+                    <span>Progress: <span id="progress-percent">0</span>%</span>
+                    <span>Time: <span id="time-elapsed">0:00</span></span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="map" class="map"></div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Load socket.io if available (optional for basic functionality)
+        const script = document.createElement('script');
+        script.src = '/socket.io/socket.io.js';
+        script.onerror = function() {
+            console.log('Socket.io not available - real-time features disabled');
+        };
+        document.head.appendChild(script);
+    </script>
+    <script src="js/map.js"></script>
+    <script src="js/route.js"></script>
+    <script src="js/animation.js"></script>
+</body>
+</html>

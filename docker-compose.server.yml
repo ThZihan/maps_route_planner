@@ -1,0 +1,178 @@
+version: '3.8'
+
+# Server-Specific Docker Compose Configuration
+# Optimized for Debian 13 headless server with 2GB RAM
+# Total Memory Limit: ~800M (well within 2GB capacity)
+
+services:
+  # OSRM Routing Engine (DISABLED - using public API to save memory)
+  # Uncomment to enable local OSRM when server is upgraded
+  # osrm-backend:
+  #   image: osrm/osrm-backend:latest
+  #   container_name: osrm-backend
+  #   ports:
+  #     - "127.0.0.1:5000:5000"
+  #   volumes:
+  #     - ./data/osrm:/data
+  #   command: >
+  #     osrm-routed --algorithm mld /data/bangladesh-latest.osrm
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 768M
+  #   networks:
+  #     - maps-network
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+
+  # Nominatim Geocoding Service
+  nominatim:
+    image: mediagis/nominatim:4.2  # Pin specific version
+    container_name: nominatim
+    ports:
+      - "127.0.0.1:8081:8080"  # Port 8081 externally, 8080 internally
+    environment:
+      - PBF_URL=https://download.geofabrik.de/asia/bangladesh-latest.osm.pbf
+      - REPLICATION_URL=https://download.geofabrik.de/asia/bangladesh-updates
+      - REPLICATION_UPDATE_INTERVAL=86400
+      - REPLICATION_RECHECK_INTERVAL=86400
+    volumes:
+      - nominatim-data:/var/lib/postgresql/data
+      - nominatim-project:/nominatim
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M  # Actual usage ~450MB
+    networks:
+      - maps-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/search?q=test"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 3600s  # Allow 1 hour for first-time initialization
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # PostgreSQL (for future use)
+  postgres:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: postgres
+    ports:
+      - "127.0.0.1:5432:5432"  # Security: Bound to localhost only
+    environment:
+      - POSTGRES_DB=mapsdb
+      - POSTGRES_USER=mapsuser
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - maps-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Redis (for future use)
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "127.0.0.1:6379:6379"  # Security: Bound to localhost only
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - maps-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "127.0.0.1:3000:3000"  # Security: Bound to localhost only
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3001}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - OSRM_URL=${OSRM_URL:-https://router.project-osrm.org}  # Public API by default
+      - NOMINATIM_URL=http://nominatim:8080
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=mapsdb
+      - DB_USER=mapsuser
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      # osrm-backend:
+      #   condition: service_started
+      nominatim:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M  # Actual usage ~90MB
+    networks:
+      - maps-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Frontend (served via nginx)
+  frontend:
+    image: nginx:alpine
+    container_name: frontend
+    ports:
+      - "127.0.0.1:3001:80"  # Security: Bound to localhost only, Cloudflare routes here
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64M  # Actual usage ~20MB
+    networks:
+      - maps-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres-data:
+  redis-data:
+  nominatim-data:
+  nominatim-project:
+
+networks:
+  maps-network:
+    driver: bridge

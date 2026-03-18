@@ -2,6 +2,11 @@
 .env
 .env.local
 .env.production
+.env.server
+.env.*.local
+
+# Server-specific files (do not commit)
+# docker-compose.server.yml is tracked, but .env is not
 
 # Node modules
 node_modules/

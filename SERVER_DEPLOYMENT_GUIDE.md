@@ -4,11 +4,30 @@ This guide explains how to deploy and update the Maps Route Planner application 
 
 ---
 
+## ⚠️ IMPORTANT: Read Before Deploying
+
+### Critical Lessons Learned
+
+**Issue:** Switching between `docker-compose.yml` and `docker-compose.server.yml` caused data loss.
+
+**Root Cause:**
+1. Memory limits were too restrictive (512M for Nominatim)
+2. Running `docker compose down` removed volumes
+3. Different configurations caused initialization failures
+
+**Solution:**
+- **No memory limits** in server configuration (let containers use what they need)
+- **Same volume names** in both configurations (preserves data)
+- **Use `docker compose up -d`** without `--build` unless code changed
+- **Never run `docker compose down`** unless intentionally resetting
+
+---
+
 ## 📋 Table of Contents
 
 1. [Branching Strategy](#branching-strategy)
 2. [Initial Server Setup](#initial-server-setup)
-3. [Deployment Workflow](#deployment-workflow)
+3. [Safe Deployment Workflow](#safe-deployment-workflow)
 4. [Update Workflow](#update-workflow)
 5. [Troubleshooting](#troubleshooting)
 6. [Configuration Reference](#configuration-reference)
@@ -32,12 +51,15 @@ master (development)
 | `master` | Development branch | Local development |
 | `server` | Server-ready branch | Production server |
 
-### Workflow Summary
+### Key Differences Between Configurations
 
-1. **Development**: Make changes on `master` branch
-2. **Merge**: Merge `master` → `server` branch
-3. **Deploy**: Server pulls from `server` branch
-4. **Update**: Repeat for future updates
+| Aspect | docker-compose.yml | docker-compose.server.yml |
+|--------|-------------------|--------------------------|
+| Frontend Port | 80 | 3001 |
+| Port Binding | 0.0.0.0 (all interfaces) | 127.0.0.1 (localhost only) |
+| OSRM | Enabled (local) | Disabled (public API) |
+| Memory Limits | None | None |
+| Volume Names | Same | Same (important!) |
 
 ---
 
@@ -86,14 +108,16 @@ CORS_ORIGIN=https://maps.kalobiral.com.bd
 ### Step 3: Start the Application
 
 ```bash
-# Build and start containers
-docker compose -f docker-compose.server.yml up -d --build
+# IMPORTANT: Use docker-compose.yml (the working configuration)
+# Only use docker-compose.server.yml if you need different port bindings
+
+docker compose up -d
 
 # Verify containers are running
-docker compose -f docker-compose.server.yml ps
+docker compose ps
 
 # Check logs
-docker compose -f docker-compose.server.yml logs -f
+docker compose logs -f
 ```
 
 ### Step 4: Verify Deployment
@@ -105,38 +129,88 @@ curl -I http://127.0.0.1:3001
 # Check if backend is accessible
 curl -I http://127.0.0.1:3000
 
-# Check memory usage
-docker stats
+# Check container status
+docker compose ps
 ```
 
 ### Expected Output
 
 ```
-CONTAINER ID   NAME        CPU %     MEM USAGE / LIMIT   MEM %     NET I/O     BLOCK I/O   PIDS
-abc123def456  frontend    0.50%     18.5MiB / 64MiB     28.91%    1.2kB / 0B  0B / 0B     3
-def456ghi789  backend     1.20%     85.3MiB / 128MiB    66.64%    2.4kB / 0B  0B / 0B     12
-ghi789jkl012  nominatim   5.80%     420.1MiB / 512MiB   82.05%    15.6kB / 0B 0B / 0B     8
+NAME        IMAGE                           STATUS                  PORTS
+backend     maps_route_planner-backend      Up (healthy)            127.0.0.1:3000->3000/tcp
+frontend    nginx:alpine                    Up                      127.0.0.1:3001->80/tcp
+nominatim   mediagis/nominatim:4.2          Up (healthy)            127.0.0.1:8081->8080/tcp
+postgres    postgis/postgis:15-3.3-alpine   Up                      0.0.0.0:5432->5432/tcp
+redis       redis:7-alpine                  Up                      0.0.0.0:6379->6379/tcp
 ```
 
 ---
 
-## Deployment Workflow
+## Safe Deployment Workflow
 
-### Overview
+### ⚠️ CRITICAL: Safe Update Commands
 
-```mermaid
-graph LR
-    A[Development on master] --> B[Commit changes]
-    B --> C[Push to origin/master]
-    C --> D[Checkout server branch]
-    D --> E[git merge master]
-    E --> F[Resolve conflicts]
-    F --> G[Push to origin/server]
-    G --> H[Server: git pull]
-    H --> I[Server: docker compose up -d]
+**DO NOT USE:**
+```bash
+# ❌ DANGEROUS - Removes volumes and data
+docker compose down
+
+# ❌ DANGEROUS - May cause issues if no code changes
+docker compose up -d --build
 ```
 
-### Step-by-Step Guide
+**SAFE TO USE:**
+```bash
+# ✅ SAFE - Just restarts containers
+docker compose restart
+
+# ✅ SAFE - Pulls new images if needed
+docker compose pull
+
+# ✅ SAFE - Starts containers without rebuild
+docker compose up -d
+
+# ✅ SAFE - Only rebuild if code changed
+docker compose up -d --build
+```
+
+### Deployment Steps
+
+1. **Pull latest changes**
+   ```bash
+   cd ~/docker-projects/maps_route_planner
+   git pull origin server
+   ```
+
+2. **Check what changed**
+   ```bash
+   git log --oneline -5
+   git diff HEAD~1 docker-compose.yml
+   ```
+
+3. **Apply updates safely**
+   ```bash
+   # If only code changed (frontend, backend)
+   docker compose up -d --build
+   
+   # If only configuration changed
+   docker compose up -d
+   
+   # If unsure, just restart
+   docker compose restart
+   ```
+
+4. **Verify deployment**
+   ```bash
+   docker compose ps
+   docker compose logs -f
+   ```
+
+---
+
+## Update Workflow
+
+### Development to Server Update Process
 
 #### On Development Machine
 
@@ -157,7 +231,7 @@ graph LR
    ```bash
    git checkout server
    git pull origin server  # Get latest server changes
-   git merge master         # Merge master into server
+   git merge master        # Merge master into server
    ```
 
 4. **Resolve conflicts (if any)**
@@ -182,24 +256,23 @@ graph LR
    git pull origin server
    ```
 
-2. **Rebuild and restart containers**
+2. **Apply updates (choose one)**
    ```bash
-   docker compose -f docker-compose.server.yml up -d --build
+   # Option A: Safe restart (recommended for most updates)
+   docker compose restart
+   
+   # Option B: Rebuild if code changed
+   docker compose up -d --build
+   
+   # Option C: Just ensure containers are running
+   docker compose up -d
    ```
 
 3. **Verify deployment**
    ```bash
-   docker compose -f docker-compose.server.yml ps
-   docker compose -f docker-compose.server.yml logs -f
+   docker compose ps
+   docker compose logs -f
    ```
-
----
-
-## Update Workflow
-
-### Safe Update Process
-
-The key to safe updates is protecting your server configuration from being overwritten.
 
 ### Configuration Protection
 
@@ -208,84 +281,7 @@ The key to safe updates is protecting your server configuration from being overw
 - `.env.local` - Local overrides
 - `.env.*.local` - Any local environment files
 
-**Tracked Files (safe to update):**
-- `docker-compose.server.yml` - Server configuration
-- `.env.server.example` - Environment template
-- All application code
-
-### Update Without Hampering Configuration
-
-#### Method 1: Git Pull (Recommended)
-
-Since `.env` is in `.gitignore`, it will never be overwritten by git pull:
-
-```bash
-# On server
-cd ~/docker-projects/maps_route_planner
-git pull origin server
-docker compose -f docker-compose.server.yml up -d --build
-```
-
-**Your `.env` file remains intact!**
-
-#### Method 2: Stash and Restore (Alternative)
-
-If you need to protect tracked files:
-
-```bash
-# On server
-cd ~/docker-projects/maps_route_planner
-
-# Stash local changes
-git stash push -m "Backup local changes"
-
-# Pull latest
-git pull origin server
-
-# Restore local changes
-git stash pop
-
-# Rebuild
-docker compose -f docker-compose.server.yml up -d --build
-```
-
-#### Method 3: Assume Unchanged (Advanced)
-
-Mark files as unchanged to prevent accidental modifications:
-
-```bash
-# On server (one-time setup)
-git update-index --assume-unchanged .env
-git update-index --assume-unchanged docker-compose.server.yml
-
-# To undo this later
-git update-index --no-assume-unchanged .env
-git update-index --no-assume-unchanged docker-compose.server.yml
-```
-
-### Typical Update Scenario
-
-**Scenario:** You want to update the frontend code without changing server configuration.
-
-```bash
-# On development machine
-git checkout master
-# Make frontend changes...
-git add frontend/
-git commit -m "Update frontend UI"
-git push origin master
-
-git checkout server
-git merge master
-git push origin server
-
-# On server
-cd ~/docker-projects/maps_route_planner
-git pull origin server
-docker compose -f docker-compose.server.yml up -d --build
-
-# Your .env file is preserved!
-```
+**Your `.env` file is protected and will NOT be overwritten by git pull!**
 
 ---
 
@@ -295,23 +291,43 @@ docker compose -f docker-compose.server.yml up -d --build
 
 ```bash
 # Check container logs
-docker compose -f docker-compose.server.yml logs <service-name>
+docker compose logs <service-name>
 
 # Check container status
-docker compose -f docker-compose.server.yml ps -a
+docker compose ps -a
 
 # Restart specific container
-docker compose -f docker-compose.server.yml restart <service-name>
+docker compose restart <service-name>
 ```
 
-### Port Already in Use
+### Nominatim Issues
+
+**Symptom:** Nominatim keeps restarting or shows unhealthy
+
+**Solution:**
+```bash
+# Check logs
+docker compose logs nominatim
+
+# If database is corrupted, you may need to reinitialize
+# WARNING: This will delete all geocoding data
+docker compose stop nominatim
+docker volume rm maps_route_planner_nominatim-data
+docker volume rm maps_route_planner_nominatim-project
+docker compose up -d nominatim
+
+# Wait up to 1 hour for initialization
+docker compose logs -f nominatim
+```
+
+### Port Already In Use
 
 ```bash
 # Check what's using the port
 ss -tlnp | grep <port>
 
 # Stop conflicting service
-docker compose -f docker-compose.server.yml stop <service-name>
+docker compose stop <service-name>
 ```
 
 ### Memory Issues
@@ -350,11 +366,10 @@ git commit -m "Resolve merge conflicts"
 ls -la .env
 
 # Check if .env is being used
-docker compose -f docker-compose.server.yml config
+docker compose config
 
-# Force rebuild
-docker compose -f docker-compose.server.yml down
-docker compose -f docker-compose.server.yml up -d --build
+# Force recreation
+docker compose up -d --force-recreate
 ```
 
 ---
@@ -362,17 +377,6 @@ docker compose -f docker-compose.server.yml up -d --build
 ## Configuration Reference
 
 ### docker-compose.server.yml
-
-#### Service Memory Limits
-
-| Service | Memory Limit | Actual Usage | Purpose |
-|---------|--------------|--------------|---------|
-| Frontend | 64M | ~20MB | nginx static file serving |
-| Backend | 128M | ~90MB | Node.js API server |
-| Nominatim | 512M | ~450MB | Geocoding service |
-| PostgreSQL | Default | ~20-30MB | Database |
-| Redis | Default | ~5-10MB | Caching |
-| **Total** | **~800M** | **~600MB** | Within 2GB limit |
 
 #### Port Bindings
 
@@ -388,12 +392,12 @@ docker compose -f docker-compose.server.yml up -d --build
 
 #### OSRM Configuration
 
-**Default:** Using public API (https://router.project-osrm.org) to save memory.
+**Default:** Using public API (https://router.project-osrm.org) to save ~768MB memory.
 
 **To enable local OSRM:**
 1. Uncomment the `osrm-backend` service in `docker-compose.server.yml`
-2. Change `OSRM_URL` in `.env` to `http://osrm-backend:5000`
-3. Rebuild containers: `docker compose -f docker-compose.server.yml up -d --build`
+2. Change `OSRM_URL` in backend environment to `http://osrm-backend:5000`
+3. Rebuild containers: `docker compose up -d --build`
 4. **Note:** This will use additional ~768MB memory
 
 ### Environment Variables
@@ -417,22 +421,22 @@ docker compose -f docker-compose.server.yml up -d --build
 
 ```bash
 # Start containers
-docker compose -f docker-compose.server.yml up -d
+docker compose up -d
 
-# Stop containers
-docker compose -f docker-compose.server.yml down
+# Stop containers (WARNING: may remove volumes)
+docker compose down
 
-# Restart containers
-docker compose -f docker-compose.server.yml restart
+# Restart containers (SAFE)
+docker compose restart
 
 # View logs
-docker compose -f docker-compose.server.yml logs -f
+docker compose logs -f
 
-# Rebuild containers
-docker compose -f docker-compose.server.yml up -d --build
+# Rebuild containers (only if code changed)
+docker compose up -d --build
 
 # Check container status
-docker compose -f docker-compose.server.yml ps
+docker compose ps
 
 # Check resource usage
 docker stats
@@ -483,13 +487,44 @@ docker system prune -a
 
 ---
 
-## Support
+## Emergency Recovery
 
-For issues or questions:
-1. Check the troubleshooting section above
-2. Review container logs: `docker compose -f docker-compose.server.yml logs`
-3. Check server documentation in `plans/` directory
-4. Open an issue on GitHub
+### If Site Goes Down
+
+1. **Check container status**
+   ```bash
+   docker compose ps
+   ```
+
+2. **Check logs for errors**
+   ```bash
+   docker compose logs
+   ```
+
+3. **Try restarting**
+   ```bash
+   docker compose restart
+   ```
+
+4. **If restart fails, rebuild**
+   ```bash
+   docker compose up -d --build
+   ```
+
+5. **If still failing, check volumes**
+   ```bash
+   docker volume ls
+   ```
+
+6. **Last resort: Re-clone and restore**
+   ```bash
+   cd ~/docker-projects
+   mv maps_route_planner maps_route_planner.backup
+   git clone -b server https://github.com/ThZihan/maps_route_planner.git
+   cd maps_route_planner
+   cp ../maps_route_planner.backup/.env .
+   docker compose up -d
+   ```
 
 ---
 
@@ -497,4 +532,5 @@ For issues or questions:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1 | 2025-03-19 | Fixed memory limit issues, added safe deployment instructions |
 | 1.0 | 2025-03-18 | Initial server deployment guide |

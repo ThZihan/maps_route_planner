@@ -12,6 +12,7 @@ const animationSpeedSlider = document.getElementById('animation-speed');
 const animationSpeedDisplay = document.getElementById('animation-speed-display');
 const progressDisplay = document.getElementById('progress-percent');
 const timeElapsedDisplay = document.getElementById('time-elapsed');
+const currentCoordinatesDisplay = document.getElementById('current-coordinates');
 
 animationSpeedSlider.addEventListener('input', (e) => {
     animationSpeed = parseInt(e.target.value);
@@ -50,6 +51,10 @@ function resetAnimation() {
     if (window.routeCoordinates && window.routeCoordinates.length > 0) {
         const [lat, lng] = window.routeCoordinates[0];
         updateVehiclePosition(lat, lng);
+        // Reset coordinates display
+        if (currentCoordinatesDisplay) {
+            currentCoordinatesDisplay.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        }
     }
 }
 
@@ -111,4 +116,9 @@ function updateVehicleAlongRoute() {
     const heading = Math.atan2(lng2 - lng1, lat2 - lat1) * (180 / Math.PI);
     
     updateVehiclePosition(lat, lng, heading);
+    
+    // Update coordinates display
+    if (currentCoordinatesDisplay) {
+        currentCoordinatesDisplay.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    }
 }

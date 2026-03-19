@@ -1,0 +1,505 @@
+/**
+ * 3D Mapbox GL JS Styles
+ * Styles for 3D mode, toggle button, and vehicle marker
+ */
+
+/* ============================================
+   Map Container Styles
+   ============================================ */
+
+.mapbox-container,
+#mapbox-container {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    display: none; /* Hidden by default */
+}
+
+/* When 3D mode is active */
+body.mode-3d #map {
+    display: none !important;
+}
+
+body.mode-3d #mapbox-container {
+    display: block !important;
+}
+
+/* When 2D mode is active */
+body.mode-2d #map {
+    display: block !important;
+}
+
+body.mode-2d #mapbox-container {
+    display: none !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .mapbox-container,
+    #mapbox-container {
+        flex: none;
+        width: 100%;
+        height: calc(100% - 60px);
+    }
+}
+
+/* ============================================
+   2D/3D Toggle Button Styles
+   ============================================ */
+
+.mode-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    margin-bottom: 15px;
+    border: 1px solid #e5e7eb;
+}
+
+.mode-toggle.hidden {
+    display: none;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.mode-btn:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.mode-btn.active {
+    background: #3b82f6;
+    color: white;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.mode-btn.active:hover {
+    background: #2563eb;
+}
+
+/* Toggle loading state */
+.mode-toggle.loading .mode-btn {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.mode-toggle.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #3b82f6;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============================================
+   3D Vehicle Marker Styles
+   ============================================ */
+
+.vehicle-marker-3d {
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    transition: transform 0.1s ease-out;
+}
+
+.vehicle-marker-3d-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Vehicle icon with glow effect */
+.vehicle-marker-3d svg {
+    width: 32px;
+    height: 32px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    transition: filter 0.2s ease;
+}
+
+.vehicle-marker-3d:hover svg {
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+}
+
+/* Vehicle shadow on ground */
+.vehicle-shadow {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 8px;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.3) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+/* Animated glow ring around vehicle */
+.vehicle-glow-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 48px;
+    height: 48px;
+    border: 2px solid rgba(59, 130, 246, 0.5);
+    border-radius: 50%;
+    animation: pulse-ring 2s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+    0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1.5);
+        opacity: 0;
+    }
+}
+
+/* ============================================
+   3D Route Styles (Mapbox)
+   ============================================ */
+
+/* Route glow effect is handled by Mapbox layer */
+/* These are fallback/additional styles */
+
+.route-3d-glow {
+    filter: blur(4px);
+    opacity: 0.5;
+}
+
+/* ============================================
+   3D Camera Transition Styles
+   ============================================ */
+
+.camera-transitioning {
+    /* Applied during camera transitions */
+    pointer-events: none;
+}
+
+.camera-transitioning::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.1) 0%,
+        transparent 30%,
+        transparent 70%,
+        rgba(0, 0, 0, 0.1) 100%
+    );
+    pointer-events: none;
+    animation: fade-out 0.5s ease forwards;
+}
+
+@keyframes fade-out {
+    to {
+        opacity: 0;
+    }
+}
+
+/* ============================================
+   3D Mode Indicator
+   ============================================ */
+
+.mode-indicator {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(59, 130, 246, 0.9);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 1000;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.mode-indicator.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.mode-indicator.3d {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+}
+
+/* ============================================
+   Performance Warning
+   ============================================ */
+
+.performance-warning {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(234, 179, 8, 0.95);
+    color: #1f2937;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: none;
+}
+
+.performance-warning.visible {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.performance-warning svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ============================================
+   WebGL Not Supported Message
+   ============================================ */
+
+.webgl-not-supported {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    z-index: 2000;
+    max-width: 400px;
+}
+
+.webgl-not-supported h3 {
+    color: #dc2626;
+    margin-bottom: 15px;
+}
+
+.webgl-not-supported p {
+    color: #6b7280;
+    margin-bottom: 20px;
+}
+
+.webgl-not-supported button {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.webgl-not-supported button:hover {
+    background: #2563eb;
+}
+
+/* ============================================
+   Mapbox Attribution Override
+   ============================================ */
+
+.mapboxgl-ctrl-attrib {
+    font-size: 10px !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    padding: 2px 8px !important;
+}
+
+.mapboxgl-ctrl-attrib a {
+    color: #3b82f6 !important;
+}
+
+/* ============================================
+   3D Building Styles (Dynamic via Mapbox)
+   ============================================ */
+
+/* Building highlight on hover (if implemented) */
+.building-highlighted {
+    filter: brightness(1.2);
+}
+
+/* ============================================
+   Loading Overlay for 3D Mode
+   ============================================ */
+
+.loading-3d-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.loading-3d-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.loading-3d-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e5e7eb;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 16px;
+}
+
+.loading-3d-text {
+    color: #374151;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* ============================================
+   Animation Controls for 3D Mode
+   ============================================ */
+
+body.mode-3d .animation-controls {
+    /* Enhanced controls for 3D mode */
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+body.mode-3d #btn-play {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+body.mode-3d #btn-play:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+/* ============================================
+   Compass/Bearing Indicator for 3D
+   ============================================ */
+
+.compass-3d {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    z-index: 100;
+}
+
+.compass-3d svg {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.3s ease;
+}
+
+.compass-3d:hover {
+    transform: scale(1.1);
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+
+.fade-in {
+    animation: fadeIn 0.3s ease forwards;
+}
+
+.fade-out {
+    animation: fadeOut 0.3s ease forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+.slide-in-right {
+    animation: slideInRight 0.3s ease forwards;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ============================================
+   Print Styles
+   ============================================ */
+
+@media print {
+    .mode-toggle,
+    .compass-3d,
+    .mode-indicator,
+    .performance-warning {
+        display: none !important;
+    }
+    
+    #mapbox-container {
+        display: block !important;
+    }
+}

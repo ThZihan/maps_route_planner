@@ -21,6 +21,12 @@ animationSpeedSlider.addEventListener('input', (e) => {
 });
 
 btnPlay.addEventListener('click', () => {
+    // Check if we're in3D mode - if so, let map adapter handle it
+    if (window.mapAdapter && window.mapAdapter.getMode() === '3d') {
+        return; // 3D mode handling is done in index.html
+    }
+    
+    // 2D mode animation
     if (!isPlaying && window.routeCoordinates && window.routeCoordinates.length > 0) {
         isPlaying = true;
         startTime = performance.now() - elapsedTime;
@@ -29,13 +35,27 @@ btnPlay.addEventListener('click', () => {
 });
 
 btnPause.addEventListener('click', () => {
+    // Check if we're in3D mode
+    if (window.mapAdapter && window.mapAdapter.getMode() === '3d') {
+        return; // 3D mode handling is done in index.html
+    }
+    
+    // 2D mode pause
     isPlaying = false;
     if (animationId) {
         cancelAnimationFrame(animationId);
     }
 });
 
-btnReset.addEventListener('click', resetAnimation);
+btnReset.addEventListener('click', () => {
+    // Check if we're in3D mode
+    if (window.mapAdapter && window.mapAdapter.getMode() === '3d') {
+        return; // 3D mode handling is done in index.html
+    }
+    
+    // 2D mode reset
+    resetAnimation();
+});
 
 function resetAnimation() {
     isPlaying = false;

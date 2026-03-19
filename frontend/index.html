@@ -4,10 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maps Route Planner</title>
+    <!-- Leaflet CSS (2D mode) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Base styles -->
     <link rel="stylesheet" href="css/style.css" />
+    <!-- 3D mode styles -->
+    <link rel="stylesheet" href="css/mapbox-3d.css" />
 </head>
-<body>
+<body class="mode-2d">
     <div class="container">
         <div class="sidebar">
             <h1>Route Planner</h1>
@@ -44,6 +48,11 @@
             </div>
             
             <div id="animation-controls" class="animation-controls hidden">
+                <!-- 2D/3D Mode Toggle - Only visible after route calculation -->
+                <div id="map-mode-toggle" class="mode-toggle">
+                    <button id="btn-2d" class="mode-btn active" title="2D View">2D</button>
+                    <button id="btn-3d" class="mode-btn" title="3D View">3D</button>
+                </div>
                 <button id="btn-play" class="btn btn-control">▶ Play</button>
                 <button id="btn-pause" class="btn btn-control">⏸ Pause</button>
                 <button id="btn-reset" class="btn btn-control">↺ Reset</button>
@@ -59,21 +68,210 @@
             </div>
         </div>
         
+        <!-- Leaflet Map Container (2D) -->
         <div id="map" class="map"></div>
+        <!-- Mapbox Map Container (3D) - Created dynamically -->
     </div>
     
+    <!-- Loading overlay for 3D mode switch -->
+    <div id="loading-3d-overlay" class="loading-3d-overlay">
+        <div class="loading-3d-spinner"></div>
+        <div class="loading-3d-text">Switching to 3D mode...</div>
+    </div>
+    
+    <!-- Mode indicator -->
+    <div id="mode-indicator" class="mode-indicator"></div>
+    
+    <!-- Performance warning -->
+    <div id="performance-warning" class="performance-warning">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+        </svg>
+        <span>Performance mode activated for smoother experience</span>
+    </div>
+    
+    <!-- Core Scripts (load first) -->
+    <script src="js/core/config.js"></script>
+    <script src="js/core/webgl-detector.js"></script>
+    
+    <!-- Leaflet (2D mode) -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // Load socket.io if available (optional for basic functionality)
-        const script = document.createElement('script');
-        script.src = '/socket.io/socket.io.js';
-        script.onerror = function() {
-            console.log('Socket.io not available - real-time features disabled');
-        };
-        document.head.appendChild(script);
+        (function() {
+            const script = document.createElement('script');
+            script.src = '/socket.io/socket.io.js';
+            script.onerror = function() {
+                console.log('Socket.io not available - real-time features disabled');
+            };
+            document.head.appendChild(script);
+        })();
     </script>
+    
+    <!-- Existing 2D modules (unchanged) -->
     <script src="js/map.js"></script>
     <script src="js/route.js"></script>
     <script src="js/animation.js"></script>
+    
+    <!-- 3D Components (loaded for 3D mode) -->
+    <script src="js/components/vehicle-marker.js"></script>
+    <script src="js/components/camera-controller.js"></script>
+    <script src="js/animation/animation-engine-3d.js"></script>
+    <script src="js/utils/performance-monitor.js"></script>
+    
+    <!-- Map Adapter (integrates all components) -->
+    <script src="js/core/map-adapter.js"></script>
+    
+    <!-- Main initialization -->
+    <script>
+        // Initialize mode toggle after page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('[Main] DOM Content Loaded');
+            
+            // Detect WebGL capability
+            const webglResults = window.webGLDetector.detect();
+            console.log('[Main] WebGL Detection:', webglResults);
+            
+            // Store WebGL support status for later use
+            window.webGLSupported = webglResults.supported;
+            
+            // Hide 3D button if WebGL is not supported
+            if (!webglResults.supported) {
+                document.getElementById('btn-3d').style.display = 'none';
+            }
+            
+            // Initialize map adapter with existing Leaflet map
+            try {
+                const initialMode = await window.mapAdapter.initialize(window.map);
+                console.log('[Main] Initialized with mode:', initialMode);
+            } catch (error) {
+                console.error('[Main] Failed to initialize map adapter:', error);
+            }
+            
+            // Setup toggle button handlers
+            document.getElementById('btn-2d').addEventListener('click', async function() {
+                if (window.mapAdapter.getMode() === '2d') return;
+                
+                showLoadingOverlay();
+                try {
+                    await window.mapAdapter.switchMode('2d');
+                    document.body.classList.remove('mode-3d');
+                    document.body.classList.add('mode-2d');
+                    document.getElementById('btn-2d').classList.add('active');
+                    document.getElementById('btn-3d').classList.remove('active');
+                    showModeIndicator('2D Mode');
+                    
+                    // Transfer animation control back to 2D
+                    syncAnimationState();
+                } catch (error) {
+                    console.error('[Main] Failed to switch to 2D:', error);
+                }
+                hideLoadingOverlay();
+            });
+            
+            document.getElementById('btn-3d').addEventListener('click', async function() {
+                if (window.mapAdapter.getMode() === '3d') return;
+                
+                showLoadingOverlay();
+                try {
+                    await window.mapAdapter.switchMode('3d');
+                    document.body.classList.remove('mode-2d');
+                    document.body.classList.add('mode-3d');
+                    document.getElementById('btn-3d').classList.add('active');
+                    document.getElementById('btn-2d').classList.remove('active');
+                    showModeIndicator('3D Mode');
+                    
+                    // Transfer animation control to 3D
+                    syncAnimationState();
+                } catch (error) {
+                    console.error('[Main] Failed to switch to 3D:', error);
+                    alert('Failed to switch to 3D mode. Please try again.');
+                }
+                hideLoadingOverlay();
+            });
+            
+            // Override animation controls for 3D mode
+            const originalPlay = window.btnPlayHandler || function() {};
+            const originalPause = window.btnPauseHandler || function() {};
+            const originalReset = window.btnResetHandler || function() {};
+            
+            document.getElementById('btn-play').addEventListener('click', function() {
+                if (window.mapAdapter.getMode() === '3d') {
+                    window.mapAdapter.playAnimation3D();
+                }
+            });
+            
+            document.getElementById('btn-pause').addEventListener('click', function() {
+                if (window.mapAdapter.getMode() === '3d') {
+                    window.mapAdapter.pauseAnimation3D();
+                }
+            });
+            
+            document.getElementById('btn-reset').addEventListener('click', function() {
+                if (window.mapAdapter.getMode() === '3d') {
+                    window.mapAdapter.resetAnimation3D();
+                }
+            });
+            
+            document.getElementById('animation-speed').addEventListener('input', function(e) {
+                if (window.mapAdapter.getMode() === '3d') {
+                    window.mapAdapter.setAnimationSpeed3D(parseInt(e.target.value));
+                }
+            });
+            
+            // Sync animation state between modes
+            function syncAnimationState() {
+                const coords = window.routeCoordinates || [];
+                const duration = window.routeDurationSeconds || 60;
+                
+                if (coords.length > 0 && window.mapAdapter.getMode() === '3d') {
+                    window.mapAdapter.updateRoute(coords, duration);
+                }
+            }
+            
+            // Helper functions
+            function showLoadingOverlay() {
+                document.getElementById('loading-3d-overlay').classList.add('visible');
+            }
+            
+            function hideLoadingOverlay() {
+                document.getElementById('loading-3d-overlay').classList.remove('visible');
+            }
+            
+            function showModeIndicator(text) {
+                const indicator = document.getElementById('mode-indicator');
+                indicator.textContent = text;
+                indicator.classList.add('visible');
+                setTimeout(() => {
+                    indicator.classList.remove('visible');
+                }, 2000);
+            }
+            
+            // Listen for route updates to sync with 3D map
+            window.addEventListener('routeUpdated', function(e) {
+                if (window.mapAdapter.getMode() === '3d') {
+                    window.mapAdapter.updateRoute(e.detail.coordinates, e.detail.duration);
+                }
+            });
+            
+            // Patch route calculation to dispatch event
+            const originalCalculateRoute = window.calculateRoute;
+            if (originalCalculateRoute) {
+                window.calculateRoute = async function() {
+                    await originalCalculateRoute.apply(this, arguments);
+                    
+                    // Dispatch event for 3D mode
+                    window.dispatchEvent(new CustomEvent('routeUpdated', {
+                        detail: {
+                            coordinates: window.routeCoordinates || [],
+                            duration: window.routeDurationSeconds || 60
+                        }
+                    }));
+                };
+            }
+            
+            console.log('[Main] Initialization complete');
+        });
+    </script>
 </body>
 </html>

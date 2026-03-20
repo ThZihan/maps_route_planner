@@ -58,3 +58,6 @@ maps project Documentation.pdf
 Capture.*
 Screenshot*
 UI_imprScreenshot*
+
+# API documentation (internal)
+docs/VEHICLE_POSITION_API.md

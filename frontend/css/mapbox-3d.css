@@ -399,8 +399,10 @@ body.mode-2d #mapbox-container {
    ============================================ */
 
 body.mode-3d .animation-controls {
-    /* Enhanced controls for 3D mode */
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    /* Enhanced controls for 3D mode - distinct from 2D */
+    background: linear-gradient(135deg, rgba(59, 7, 100, 0.95) 0%, rgba(76, 29, 149, 0.9) 100%);
+    border: 1px solid rgba(147, 51, 234, 0.5);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 10px rgba(147, 51, 234, 0.15);
 }
 
 body.mode-3d #btn-play {

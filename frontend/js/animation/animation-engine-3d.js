@@ -34,6 +34,7 @@ class AnimationEngine3D {
         this.animationFrame = null;
         this.frameInterval = 1000 / 60; // Target 60fps
         this.accumulatedTime = 0;
+        this.positionUpdateTimeout = null;
         
         // Performance optimization
         this.frameSkipCount = 0;
@@ -54,6 +55,12 @@ class AnimationEngine3D {
         this.routeDuration = (duration || 60) * 1000; // Convert to ms
         this.progress = 0;
         this.currentSegment = 0;
+        
+        // Update coordinates display with start position
+        if (coordinates.length > 0) {
+            const startPos = coordinates[0];
+            this._updateCoordinatesDisplay(startPos[1], startPos[0]);
+        }
         
         console.log(`[AnimationEngine3D] Route set: ${coordinates.length} points, ${duration}s duration`);
     }
@@ -124,6 +131,9 @@ class AnimationEngine3D {
             const startPos = this.routeCoordinates[0];
             const bearing = this._calculateBearing(0);
             this.vehicleMarker.setPosition(startPos, bearing);
+            
+            // Update coordinates display with start position
+            this._updateCoordinatesDisplay(startPos[1], startPos[0]);
         }
         
         // Reset camera
@@ -268,6 +278,12 @@ class AnimationEngine3D {
         
         // Update camera to follow vehicle
         this.cameraController.update([lng, lat], bearing);
+        
+        // Update coordinates display
+        this._updateCoordinatesDisplay(lat, lng);
+        
+        // Send position update to backend
+        this._sendPositionToBackend(lat, lng, bearing);
     }
     
     /**
@@ -327,6 +343,48 @@ class AnimationEngine3D {
         
         // Dispatch completion event
         window.dispatchEvent(new CustomEvent('animation3dComplete'));
+    }
+    
+    /**
+     * Update coordinates display in UI
+     * @private
+     * @param {number} lat - Latitude
+     * @param {number} lng - Longitude
+     */
+    _updateCoordinatesDisplay(lat, lng) {
+        const latElement = document.getElementById('current-lat');
+        const lngElement = document.getElementById('current-lng');
+        
+        if (latElement) {
+            latElement.textContent = `Lat: ${lat.toFixed(6)}`;
+        }
+        if (lngElement) {
+            lngElement.textContent = `Lng: ${lng.toFixed(6)}`;
+        }
+    }
+    
+    /**
+     * Send position update to backend
+     * @private
+     * @param {number} lat - Latitude
+     * @param {number} lng - Longitude
+     * @param {number} heading - Heading in degrees
+     */
+    _sendPositionToBackend(lat, lng, heading) {
+        // Debounce position updates to avoid overwhelming the server
+        if (this.positionUpdateTimeout) {
+            clearTimeout(this.positionUpdateTimeout);
+        }
+        
+        this.positionUpdateTimeout = setTimeout(() => {
+            fetch('/api/vehicle/position', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lat, lng, heading })
+            }).catch(error => {
+                console.error('[AnimationEngine3D] Failed to send position update:', error);
+            });
+        }, 100); // Send updates at most every 100ms
     }
     
     /**

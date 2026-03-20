@@ -53,9 +53,11 @@
                     <button id="btn-2d" class="mode-btn active" title="2D View">2D</button>
                     <button id="btn-3d" class="mode-btn" title="3D View">3D</button>
                 </div>
-                <button id="btn-play" class="btn btn-control">▶ Play</button>
-                <button id="btn-pause" class="btn btn-control">⏸ Pause</button>
-                <button id="btn-reset" class="btn btn-control">↺ Reset</button>
+                <div class="btn-group">
+                    <button id="btn-play" class="btn btn-control">▶ Play</button>
+                    <button id="btn-pause" class="btn btn-control">⏸ Pause</button>
+                    <button id="btn-reset" class="btn btn-control">↺ Reset</button>
+                </div>
                 <div class="speed-control">
                     <label>Animation Speed:</label>
                     <input type="range" id="animation-speed" min="1" max="10" value="1" />
@@ -64,6 +66,20 @@
                 <div class="progress-info">
                     <span>Progress: <span id="progress-percent">0</span>%</span>
                     <span>Time: <span id="time-elapsed">0:00</span></span>
+                </div>
+                <div class="coordinates-info">
+                    <span class="label">Vehicle Position:</span>
+                    <div class="coords-display">
+                        <span id="current-lat">Lat: --</span>
+                        <span id="current-lng">Lng: --</span>
+                    </div>
+                </div>
+                <div class="api-get-area">
+                    <span class="label">Vehicle Position API:</span>
+                    <div class="api-url-container">
+                        <input type="text" id="api-url" class="api-url-input" readonly value="GET /api/vehicle/position" />
+                        <button id="copy-api-btn" class="btn-copy" title="Copy API endpoint">📋</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -271,6 +287,43 @@
             }
             
             console.log('[Main] Initialization complete');
+            
+            // Copy API button functionality
+            const copyApiBtn = document.getElementById('copy-api-btn');
+            if (copyApiBtn) {
+                copyApiBtn.addEventListener('click', function() {
+                    const apiUrlInput = document.getElementById('api-url');
+                    if (apiUrlInput) {
+                        apiUrlInput.select();
+                        apiUrlInput.setSelectionRange(0, 99999); // For mobile devices
+                        
+                        navigator.clipboard.writeText(apiUrlInput.value).then(function() {
+                            copyApiBtn.classList.add('copied');
+                            copyApiBtn.textContent = '✓';
+                            
+                            setTimeout(function() {
+                                copyApiBtn.classList.remove('copied');
+                                copyApiBtn.textContent = '📋';
+                            }, 2000);
+                        }).catch(function(err) {
+                            console.error('Failed to copy API URL:', err);
+                            // Fallback for older browsers
+                            try {
+                                document.execCommand('copy');
+                                copyApiBtn.classList.add('copied');
+                                copyApiBtn.textContent = '✓';
+                                
+                                setTimeout(function() {
+                                    copyApiBtn.classList.remove('copied');
+                                    copyApiBtn.textContent = '📋';
+                                }, 2000);
+                            } catch (e) {
+                                console.error('Fallback copy failed:', e);
+                            }
+                        });
+                    }
+                });
+            }
         });
     </script>
 </body>

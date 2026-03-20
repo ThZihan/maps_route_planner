@@ -153,6 +153,8 @@ function clearRoute(clearCoordinates = true) {
     // When drawRoute is called, we pass false to preserve coordinates for animation
     if (clearCoordinates) {
         window.routeCoordinates = [];
+        // Reset coordinates display
+        updateCoordinatesDisplay(null, null);
     }
 }
 
@@ -300,5 +302,40 @@ function updateVehiclePosition(lat, lng, heading = 0) {
         if (divElement) {
             divElement.style.transform = `rotate(${heading}deg)`;
         }
+    }
+    
+    // Update coordinates display
+    updateCoordinatesDisplay(lat, lng);
+    
+    // Send position update to backend
+    sendPositionToBackend(lat, lng, heading);
+}
+
+function sendPositionToBackend(lat, lng, heading) {
+    // Debounce position updates to avoid overwhelming the server
+    if (window.positionUpdateTimeout) {
+        clearTimeout(window.positionUpdateTimeout);
+    }
+    
+    window.positionUpdateTimeout = setTimeout(() => {
+        fetch('/api/vehicle/position', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lng, heading })
+        }).catch(error => {
+            console.error('Failed to send position update:', error);
+        });
+    }, 100); // Send updates at most every 100ms
+}
+
+function updateCoordinatesDisplay(lat, lng) {
+    const latElement = document.getElementById('current-lat');
+    const lngElement = document.getElementById('current-lng');
+    
+    if (latElement) {
+        latElement.textContent = lat !== null ? `Lat: ${lat.toFixed(6)}` : 'Lat: --';
+    }
+    if (lngElement) {
+        lngElement.textContent = lng !== null ? `Lng: ${lng.toFixed(6)}` : 'Lng: --';
     }
 }

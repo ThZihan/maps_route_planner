@@ -30,4 +30,8 @@ router.post('/eta',
   routeController.calculateETA
 );
 
+// Vehicle position endpoints
+router.get('/vehicle/position', routeController.getVehiclePosition);
+router.post('/vehicle/position', routeController.updateVehiclePosition);
+
 module.exports = router;

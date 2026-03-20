@@ -124,3 +124,56 @@ exports.calculateETA = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Store vehicle position in memory (for demo purposes)
+let vehiclePosition = {
+  lat: null,
+  lng: null,
+  timestamp: null,
+  heading: null
+};
+
+exports.getVehiclePosition = (req, res) => {
+  try {
+    res.json({
+      success: true,
+      position: vehiclePosition
+    });
+  } catch (error) {
+    logger.error('Get vehicle position error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.updateVehiclePosition = (req, res) => {
+  try {
+    const { lat, lng, heading } = req.body;
+    
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: 'Latitude and longitude required' });
+    }
+    
+    vehiclePosition = {
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      heading: heading ? parseFloat(heading) : null,
+      timestamp: new Date().toISOString()
+    };
+    
+    logger.info(`Vehicle position updated: ${vehiclePosition.lat}, ${vehiclePosition.lng}`);
+    
+    // Emit to connected clients via socket.io
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('vehiclePosition', vehiclePosition);
+    }
+    
+    res.json({
+      success: true,
+      position: vehiclePosition
+    });
+  } catch (error) {
+    logger.error('Update vehicle position error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

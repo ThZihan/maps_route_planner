@@ -452,7 +452,7 @@ class MapAdapter {
                 leafletContainer.style.display = 'block';
             }
             // Trigger resize for Leaflet (invalidateSize is on the map instance)
-            if (this.maps.leaflet) {
+            if (this.maps.leaflet && typeof this.maps.leaflet.invalidateSize === 'function') {
                 setTimeout(() => {
                     this.maps.leaflet.invalidateSize();
                 }, 100);

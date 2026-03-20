@@ -38,6 +38,9 @@ app.use(express.static(path.join(__dirname, '../../frontend')));
 // Socket.io initialization
 initializeSocket(io);
 
+// Make io available to controllers
+app.set('io', io);
+
 // Error handling
 app.use(errorHandler);
 

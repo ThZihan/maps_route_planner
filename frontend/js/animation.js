@@ -72,9 +72,22 @@ function resetAnimation() {
         const [lat, lng] = window.routeCoordinates[0];
         updateVehiclePosition(lat, lng);
         // Reset coordinates display
-        if (currentCoordinatesDisplay) {
-            currentCoordinatesDisplay.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-        }
+        updateCoordinatesDisplay(lat, lng);
+    } else {
+        // Reset coordinates display if no route
+        updateCoordinatesDisplay(null, null);
+    }
+}
+
+function updateCoordinatesDisplay(lat, lng) {
+    const latElement = document.getElementById('current-lat');
+    const lngElement = document.getElementById('current-lng');
+    
+    if (latElement) {
+        latElement.textContent = lat !== null ? `Lat: ${lat.toFixed(6)}` : 'Lat: --';
+    }
+    if (lngElement) {
+        lngElement.textContent = lng !== null ? `Lng: ${lng.toFixed(6)}` : 'Lng: --';
     }
 }
 

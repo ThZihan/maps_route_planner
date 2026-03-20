@@ -68,8 +68,18 @@
                     <span>Time: <span id="time-elapsed">0:00</span></span>
                 </div>
                 <div class="coordinates-info">
-                    <span class="label">Current Position:</span>
-                    <span id="current-coordinates">--</span>
+                    <span class="label">Vehicle Position:</span>
+                    <div class="coords-display">
+                        <span id="current-lat">Lat: --</span>
+                        <span id="current-lng">Lng: --</span>
+                    </div>
+                </div>
+                <div class="api-get-area">
+                    <span class="label">Vehicle Position API:</span>
+                    <div class="api-url-container">
+                        <input type="text" id="api-url" class="api-url-input" readonly value="GET /api/vehicle/position" />
+                        <button id="copy-api-btn" class="btn-copy" title="Copy API endpoint">📋</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -277,6 +287,43 @@
             }
             
             console.log('[Main] Initialization complete');
+            
+            // Copy API button functionality
+            const copyApiBtn = document.getElementById('copy-api-btn');
+            if (copyApiBtn) {
+                copyApiBtn.addEventListener('click', function() {
+                    const apiUrlInput = document.getElementById('api-url');
+                    if (apiUrlInput) {
+                        apiUrlInput.select();
+                        apiUrlInput.setSelectionRange(0, 99999); // For mobile devices
+                        
+                        navigator.clipboard.writeText(apiUrlInput.value).then(function() {
+                            copyApiBtn.classList.add('copied');
+                            copyApiBtn.textContent = '✓';
+                            
+                            setTimeout(function() {
+                                copyApiBtn.classList.remove('copied');
+                                copyApiBtn.textContent = '📋';
+                            }, 2000);
+                        }).catch(function(err) {
+                            console.error('Failed to copy API URL:', err);
+                            // Fallback for older browsers
+                            try {
+                                document.execCommand('copy');
+                                copyApiBtn.classList.add('copied');
+                                copyApiBtn.textContent = '✓';
+                                
+                                setTimeout(function() {
+                                    copyApiBtn.classList.remove('copied');
+                                    copyApiBtn.textContent = '📋';
+                                }, 2000);
+                            } catch (e) {
+                                console.error('Fallback copy failed:', e);
+                            }
+                        });
+                    }
+                });
+            }
         });
     </script>
 </body>

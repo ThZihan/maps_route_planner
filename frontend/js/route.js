@@ -127,6 +127,12 @@ async function calculateRoute() {
             window.currentRoute = currentRoute;
             window.routeCoordinates = routeCoordinates;
             
+            // Update coordinates display with start position
+            if (routeCoordinates.length > 0) {
+                const [lat, lng] = routeCoordinates[0];
+                updateCoordinatesDisplay(lat, lng);
+            }
+            
             // Draw route on map
             drawRoute(data.route.geometry);
             
@@ -181,6 +187,19 @@ async function calculateRoute() {
     } catch (error) {
         console.error('Route calculation error:', error);
         alert('Failed to calculate route');
+    }
+}
+
+// Update coordinates display
+function updateCoordinatesDisplay(lat, lng) {
+    const latElement = document.getElementById('current-lat');
+    const lngElement = document.getElementById('current-lng');
+    
+    if (latElement) {
+        latElement.textContent = lat !== null ? `Lat: ${lat.toFixed(6)}` : 'Lat: --';
+    }
+    if (lngElement) {
+        lngElement.textContent = lng !== null ? `Lng: ${lng.toFixed(6)}` : 'Lng: --';
     }
 }
 
